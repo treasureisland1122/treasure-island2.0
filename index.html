@@ -1,0 +1,280 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>TREASURE ISLAND</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0c2b30;--sand:#f0dba8;--gold:#f2c14e;--bg:rgba(8,30,34,.84);color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#06191c;font-family:'Gowun Batang',serif;color:var(--sand)}
+canvas{display:block}
+.ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(5,20,24,.7);z-index:5;text-align:center;padding:16px}
+.ov.on{display:flex}#title{background:linear-gradient(transparent 30%,rgba(5,20,24,.85))}
+h1{font:400 clamp(44px,10vw,120px)/1 'Black Han Sans',sans-serif;margin:0;color:var(--gold);text-shadow:0 6px 0 #7a4a12,0 0 40px rgba(242,193,78,.4);letter-spacing:.04em}
+h2{margin:0;font-size:24px;color:var(--gold)}
+button{font:700 18px 'Gowun Batang',serif;color:var(--ink);background:var(--sand);border:2px solid var(--gold);padding:10px 26px;border-radius:6px;cursor:pointer;min-width:220px}
+button:hover,button:focus-visible{background:var(--gold);outline:none}button:disabled{opacity:.4;cursor:default}
+.panel{background:var(--bg);border:1px solid #f2c14e66;border-radius:10px;padding:16px 22px;max-width:560px;line-height:1.6}
+input[type=range]{width:200px}
+#hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:2;text-shadow:0 1px 4px #000}
+#ch{position:absolute;left:18px;top:16px;max-width:360px}#ch b{display:block;color:var(--gold);font-size:19px}
+#cmp{position:absolute;right:18px;top:14px;width:84px;text-align:center;display:none}
+#ring{position:relative;width:84px;height:84px;border:2px solid var(--gold);border-radius:50%;background:var(--bg)}
+#ring i{position:absolute;font:700 14px 'Gowun Batang';font-style:normal}
+#ring i:nth-child(1){top:2px;left:50%;transform:translateX(-50%);color:var(--gold)}#ring i:nth-child(2){right:6px;top:50%;transform:translateY(-50%)}
+#ring i:nth-child(3){bottom:2px;left:50%;transform:translateX(-50%)}#ring i:nth-child(4){left:6px;top:50%;transform:translateY(-50%)}
+#xh{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff;opacity:.8;box-shadow:0 0 0 1px #0008}
+#pr{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:20px;color:#fff;background:var(--bg);padding:6px 16px;border-radius:6px;display:none;border:1px solid var(--gold)}
+#ts{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);text-align:center;font-size:18px}
+#ts div{background:var(--bg);margin-top:6px;padding:6px 16px;border-radius:6px}
+#hint{position:absolute;left:18px;bottom:12px;font-size:13px;opacity:.7}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s;z-index:8}
+#grid{display:grid;grid-template-columns:repeat(4,76px);gap:8px}
+.sl{height:76px;min-width:0;padding:0;font-size:32px;background:#123e44;color:var(--sand);border-color:#f2c14e55}.sl.s{border-color:var(--gold);background:#1c5a60}
+.shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#kp{font:700 34px 'Black Han Sans';width:200px;text-align:center;letter-spacing:.3em;background:#0c2b30;color:var(--gold);border:2px solid var(--gold);padding:8px;border-radius:6px}
+@media(prefers-reduced-motion:reduce){.shake{animation:none}}
+</style></head><body>
+<div id="hud"><div id="ch"><b id="cht"></b><span id="goal"></span></div>
+<div id="cmp"><div id="ring"><i>N</i><i>E</i><i>S</i><i>W</i></div><span id="deg"></span></div>
+<div id="xh"></div><div id="pr"></div><div id="ts"></div><div id="hint">Tab 인벤토리 · M 지도 · F 횃불 · E 상호작용 · Shift 달리기</div></div>
+<div id="fade"></div>
+<div class="ov on" id="title"><h1>TREASURE ISLAND</h1><p style="font-size:20px;margin:0 0 8px">무인도에 표류한 탐험가. 보물의 비밀을 풀고 섬을 탈출하라.</p>
+<button id="bNew">게임 시작</button><button id="bCont">이어하기</button><button id="bSet">설정</button>
+<div class="panel" style="font-size:15px">WASD 이동 · 마우스 시점 · Shift 달리기 · Space 점프<br>E 상호작용 · Tab 인벤토리 · M 지도 · F 횃불 · Esc 일시정지</div></div>
+<div class="ov" id="pause"><h2>일시정지</h2><button id="pR">계속하기</button><button id="pS">설정</button><button id="pN">처음부터 다시 시작</button></div>
+<div class="ov" id="set"><h2>설정</h2><label>볼륨 <input id="sv" type="range" min="0" max="1" step=".05"></label><label>마우스 감도 <input id="ss" type="range" min="1" max="6" step=".25"></label><button id="sB">돌아가기</button></div>
+<div class="ov" id="inv"><h2>인벤토리</h2><div id="grid"></div><div class="panel" id="idesc" style="min-width:300px;min-height:70px">아이템을 선택하세요.</div><div><button id="iU">사용</button> <button id="iC">닫기 (Tab)</button></div></div>
+<div class="ov" id="map"><h2>낡은 보물지도</h2><canvas id="mc" width="340" height="340" style="border:3px solid var(--gold);border-radius:6px"></canvas><button id="mX">닫기 (M)</button></div>
+<div class="ov" id="md"><div class="panel" id="mdc"></div><div id="mdb"></div></div>
+<div class="ov" id="end"><h1>THE END</h1><p style="font-size:22px">수리한 배가 파도를 가르며 섬을 떠난다. 보물섬의 비밀은 당신만이 알고 있다.</p><button id="eN">처음부터 다시 시작</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,$=i=>document.getElementById(i),R=Math.random,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const hash=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s)},sm=t=>t*t*(3-2*t);
+function vn(x,y){const i=Math.floor(x),j=Math.floor(y),u=sm(x-i),v=sm(y-j),a=hash(i,j),b=hash(i+1,j),c=hash(i,j+1),d=hash(i+1,j+1),p=a+(b-a)*u;return p+((c+(d-c)*u)-p)*v-.5}
+const raw=(x,z)=>22*Math.pow(Math.max(0,1-Math.hypot(x,z)/115),1.3)-3.2+vn(x*.05,z*.05)*4+vn(x*.17,z*.17);
+const PL=[[28,-42,14],[-38,12,8],[45,-70,7],[-8,74,7],[26,74,7],[-20,-30,3],[-8,48,3]].map(([x,z,r])=>({x,z,r,y:Math.max(raw(x,z),1.3)}));
+function H(x,z){let h=raw(x,z);for(const p of PL){const d=Math.hypot(x-p.x,z-p.z);if(d<p.r+8)h+=(p.y-h)*sm(1-cl((d-p.r)/8,0,1))}return h}
+const CX=260,CY=-40,CZ=260;
+const LS=window.localStorage;let SET={vol:.7,sens:2.2};try{Object.assign(SET,JSON.parse(LS.getItem('ti_set')||'{}'))}catch(e){}
+const fresh=()=>({f:{},inv:[],x:4,y:0,z:70,yaw:Math.PI+.4,torch:0,cave:0});
+let S=fresh();
+const IT={map:['낡은 보물지도','🗺','섬의 지형과 목표가 그려져 있다. 사용하면 펼친다.'],key:['녹슨 열쇠','🗝','고대 유적의 석문을 여는 열쇠.'],torch:['횃불','🔥','사용하면 켜고 끈다(F). 동굴에서 필수.'],rope:['밧줄','➰','튼튼한 밧줄. 배 수리에 쓰인다.'],plank:['나무판자','🪵','배의 구멍을 막을 판자.'],hammer:['망치','🔨','못을 박을 때 쓴다.'],food:['식량','🥥','코코넛. 사용하면 기운이 난다.'],compass:['나침반','🧭','우측 상단에 방위를 표시한다.'],glyph:['고대 문양 조각','🗿','유적 제단에서 얻은 조각. 오래된 힘이 느껴진다.'],part:['배 수리 부품','⚙','보물방에서 발견한 항해용 부품.'],ckey:['동굴 열쇠','🔑','동굴 입구의 문을 여는 열쇠.']};
+// ---------- renderer / scene ----------
+const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;document.body.prepend(ren.domElement);
+const cvs=ren.domElement,scene=new T.Scene(),cam=new T.PerspectiveCamera(70,1,.1,400);cam.rotation.order='YXZ';scene.add(cam);
+scene.fog=new T.FogExp2(0x9fd8d6,.005);
+const hemi=new T.HemisphereLight(0xbfe9ff,0x5a4a2a,.9),sun=new T.DirectionalLight(0xfff0d0,2.2);
+sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);{const c=sun.shadow.camera;c.left=c.bottom=-45;c.right=c.top=45;c.far=200}sun.shadow.bias=-.0005;scene.add(hemi,sun,sun.target);
+const skyU={t:{value:new T.Color(0x2f86c9)},b:{value:new T.Color(0xbfe9e6)}};
+const sky=new T.Mesh(new T.SphereGeometry(350,16,12),new T.ShaderMaterial({uniforms:skyU,side:T.BackSide,depthWrite:false,fog:false,vertexShader:'varying float h;void main(){h=normalize(position).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform vec3 t,b;varying float h;void main(){gl_FragColor=vec4(mix(b,t,smoothstep(0.,.6,h)),1.);}'}));scene.add(sky);
+const M=(c,o={})=>new T.MeshStandardMaterial(Object.assign({color:c,roughness:.9},o));
+function B(g,m,x,y,z,p){const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;(p||scene).add(o);return o}
+const COL=[],box=(x,z,w,d)=>{const c={x1:x-w/2,x2:x+w/2,z1:z-d/2,z2:z+d/2};COL.push(c);return c};
+const wall=(x,y,z,w,h,d,m,col=true)=>{const o=B(new T.BoxGeometry(w,h,d),m,x,y+h/2,z);return col?[o,box(x,z,w,d)]:[o]};
+const U={time:{value:0}};
+function sway(m){m.onBeforeCompile=s=>{s.uniforms.uTime=U.time;s.vertexShader='uniform float uTime;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nfloat w=sin(uTime*1.6+instanceMatrix[3].x*.5);transformed.x+=w*.14*abs(position.z)+w*.05*position.y;')};return m}
+// ---------- terrain & water ----------
+{const g=new T.PlaneGeometry(260,260,150,150);g.rotateX(-Math.PI/2);const pa=g.attributes.position,col=new Float32Array(pa.count*3);
+for(let i=0;i<pa.count;i++){const x=pa.getX(i),z=pa.getZ(i),h=H(x,z);pa.setY(i,h);const c=new T.Color(h<3.3?0xe6cf98:h<9?0x3f8a3a:h<14?0x2c6a32:0x7a7466);c.offsetHSL(0,0,(hash(x,z)-.5)*.07);col.set([c.r,c.g,c.b],i*3)}
+g.setAttribute('color',new T.BufferAttribute(col,3));g.computeVertexNormals();const t=new T.Mesh(g,M(0xffffff,{vertexColors:true}));t.receiveShadow=true;scene.add(t)}
+const wg=new T.PlaneGeometry(500,500,60,60);wg.rotateX(-Math.PI/2);const wm=new T.Mesh(wg,M(0x1f9fb0,{transparent:true,opacity:.82,roughness:.15,metalness:.1}));wm.position.y=-.1;scene.add(wm);
+const wp=wg.attributes.position;
+// ---------- nature (instanced) ----------
+const dm=new T.Object3D();
+function palms(){const N=170,tg=new T.CylinderGeometry(.16,.3,7,6,3);tg.translate(0,3.5,0);const fg=new T.BoxGeometry(.7,.06,3.4);fg.translate(0,0,1.7);
+const tr=new T.InstancedMesh(tg,sway(M(0x6b4a2a)),N),fr=new T.InstancedMesh(fg,sway(M(0x2f9a3e,{side:T.DoubleSide})),N*7);tr.castShadow=fr.castShadow=true;
+let n=0;for(let a=0;a<2000&&n<N;a++){const x=(R()-.5)*230,z=(R()-.5)*230,h=H(x,z);if(h<2.6||PL.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+2.5)||Math.hypot(x-4,z-70)<6)continue;
+const s=.8+R()*.7,l=(R()-.5)*.25;dm.position.set(x,h,z);dm.rotation.set(0,R()*6,l,'YXZ');dm.scale.setScalar(s);dm.updateMatrix();tr.setMatrixAt(n,dm.matrix);
+const tx=x-Math.sin(l)*7*s,ty=h+Math.cos(l)*7*s;for(let k=0;k<7;k++){dm.position.set(tx,ty,z);dm.rotation.set(.15+R()*.45,k/7*6.283+R(),0,'YXZ');dm.scale.setScalar(s);dm.updateMatrix();fr.setMatrixAt(n*7+k,dm.matrix)}
+box(x,z,.8,.8);n++}tr.count=n;fr.count=n*7;scene.add(tr,fr)}palms();
+function scatter(geo,mat,N,f,minH,sc){const m=new T.InstancedMesh(geo,mat,N);m.castShadow=true;let n=0;for(let a=0;a<N*4&&n<N;a++){const x=(R()-.5)*240,z=(R()-.5)*240,h=H(x,z);if(h<minH||PL.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+1))continue;dm.position.set(x,h+f,z);dm.rotation.set(R()*.4,R()*6,R()*.4);dm.scale.set(sc*(.6+R()),sc*(.6+R()),sc*(.6+R()));dm.updateMatrix();m.setMatrixAt(n++,dm.matrix)}m.count=n;scene.add(m)}
+scatter(new T.ConeGeometry(.5,1.6,5),M(0x3fae4a),350,.6,3,1);scatter(new T.DodecahedronGeometry(1,0),M(0x77746c),90,.3,.8,1.4);scatter(new T.SphereGeometry(.4,6,5),M(0x7ac24a),200,.2,3.2,1);
+// ---------- props ----------
+function torchM(){const g=new T.Group();g.add(new T.Mesh(new T.CylinderGeometry(.04,.05,.7,6),M(0x5a3a1e)));const f=new T.Mesh(new T.ConeGeometry(.1,.3,6),new T.MeshBasicMaterial({color:0xffa030}));f.position.y=.5;g.add(f);FL.push(f);return g}
+const FL=[],PK=[],IA=[],anim=[];
+const crate=(x,z,s=1)=>{const g=new T.Group();B(new T.BoxGeometry(1,.9,1),M(0x8a5a2a),0,.45,0,g);for(const y of[.15,.75])B(new T.BoxGeometry(1.04,.1,1.04),M(0x4a3018),0,y,0,g);g.position.set(x,H(x,z),z);g.rotation.y=R()*3;g.scale.setScalar(s);scene.add(g);return g};
+function ship(sc,intact){const g=new T.Group(),wood=M(0x5a3a1e),sh=new T.Shape();sh.moveTo(-6,0);sh.quadraticCurveTo(-5,-2.2,0,-2.4);sh.quadraticCurveTo(5,-2.2,7,1);sh.lineTo(-6.5,1);
+const hull=B(new T.ExtrudeGeometry(sh,{depth:3,bevelEnabled:false}),wood,0,0,-1.5,g);B(new T.BoxGeometry(12,.15,2.8),M(0x8a6a3a),.3,.95,0,g);
+for(const[x,h]of[[-1.5,9],[2.8,7]]){B(new T.CylinderGeometry(.12,.18,h,8),wood,x,.9+h/2,0,g);B(new T.CylinderGeometry(.07,.07,4.4,6),wood,x,.9+h*.8,0,g).rotation.x=Math.PI/2;
+const s=B(new T.PlaneGeometry(4,h*.55),M(0xe8dcc0,{side:T.DoubleSide}),x,.9+h*.5,0,g);s.rotation.y=Math.PI/2;s.userData.sail=1;if(!intact){s.scale.set(.6,.6,1);s.rotation.z=.25}}
+for(const side of[-1.4,1.4]){B(new T.BoxGeometry(11,.1,.1),wood,.3,1.9,side,g);for(let i=0;i<8;i++)B(new T.CylinderGeometry(.05,.05,.95,5),wood,-5+i*1.5,1.4,side,g)}
+for(const x of[-1.5,2.8])for(const z of[-1.4,1.4]){const r=B(new T.CylinderGeometry(.015,.015,5,4),M(0x6a5a3a),x+(x<0?1.5:-1.5)*.5,4,z/2,g);r.rotation.set(z>0?.45:-.45,0,x<0?.3:-.3)}
+g.scale.setScalar(sc);scene.add(g);return g}
+// beach
+const wreck=ship(1,false);wreck.position.set(-16,H(-16,80)+1.4,80);wreck.rotation.set(0,.5,.28);box(-16,80,12,4);
+const boat=ship(.6,false);boat.position.set(26,H(26,76)+.9,76);boat.rotation.y=Math.PI/2;box(26,76,2.5,7);
+boat.traverse(o=>{if(o.userData.sail)o.visible=false});
+const bp={plank:B(new T.BoxGeometry(2,.15,.6),M(0xc89a5a),0,-.7,1.6,boat),rope:B(new T.TorusGeometry(.6,.1,6,12),M(0xc8b080),2,1.1,0,boat),part:B(new T.CylinderGeometry(.4,.4,.3,10),M(0xd9a830,{metalness:.7,emissive:0x442200}),-3,1.2,0,boat),hammer:null};
+bp.part.rotation.x=1.5;bp.rope.rotation.x=1.5;Object.values(bp).forEach(o=>o&&(o.visible=false));boat.scale.y=1;
+
+for(let i=0;i<7;i++){const x=12+i*.0,z=84+i*.9;B(new T.BoxGeometry(2,.12,.7),M(0x7a5a30),x,H(x,z)+.9+.0,z);if(i%2==0){B(new T.CylinderGeometry(.1,.1,1.6,5),M(0x4a3018),x-1,H(x,z)+.3,z);B(new T.CylinderGeometry(.1,.1,1.6,5),M(0x4a3018),x+1,H(x,z)+.3,z)}}
+const cr1=crate(-8,72);const crt=cr1;crate(-11,69,.8);crate(-5,77,.7);crate(-13,74,.9);
+const cc=B(new T.SphereGeometry(.35,8,6),M(0x5a3a1a),-4,0,0);cc.position.set(-8,H(-8,48)+.4,48);
+// camp
+const camp=new T.Group();camp.position.set(-38,H(-38,12),12);scene.add(camp);
+for(const[x,z,r]of[[-4,-3,.3],[4,-2,-.4],[0,-6,0]]){const t=B(new T.ConeGeometry(2.2,2.6,4),M(0xb09a6a),x,1.3,z,camp);t.rotation.y=Math.PI/4+r;box(-38+x,12+z,3,3)}
+for(let i=0;i<4;i++){const l=B(new T.CylinderGeometry(.1,.1,1.2,5),M(0x3a2410),0,.15,0,camp);l.rotation.set(1.5,i*.8,0)}
+const flame=B(new T.ConeGeometry(.35,1,6),new T.MeshBasicMaterial({color:0xff8a20}),0,.7,0,camp);const fl2=B(new T.ConeGeometry(.2,.7,6),new T.MeshBasicMaterial({color:0xffe070}),0,.6,0,camp);
+const fire=new T.PointLight(0xff8a30,2,18,1.5);fire.position.set(0,1.2,0);camp.add(fire);box(-38,12,1.2,1.2);
+const tab=B(new T.BoxGeometry(1.6,.8,1),M(0x6a4a2a),-0,.4,4,camp);box(-38,16,1.6,1);B(new T.BoxGeometry(.5,.04,.4),M(0xe8dcb0),0,.82,4,camp);
+const sk=new T.Group();B(new T.SphereGeometry(.2,8,6),M(0xe8e4d0),0,.2,0,sk);B(new T.BoxGeometry(.2,.1,.18),M(0xe8e4d0),0,.05,.05,sk);sk.position.set(2,0,2);camp.add(sk);
+const hamM=new T.Group();B(new T.CylinderGeometry(.04,.04,.6,5),M(0x6a4a2a),0,0,0,hamM).rotation.z=1.5;B(new T.BoxGeometry(.16,.22,.16),M(0x777777),.3,0,0,hamM);hamM.position.set(-38-4,H(-42,10)+1.3,10);scene.add(hamM);hamM.position.y=H(-42,10)+.15;
+const torchP=torchM();torchP.position.set(-35,H(-35,15)+.4,15);torchP.rotation.z=1.4;scene.add(torchP);
+// fallen log (key)
+const logM=B(new T.CylinderGeometry(.6,.7,7,8),M(0x5a3a22),-20,H(-20,-30)+.7,-30);logM.rotation.z=Math.PI/2;logM.rotation.y=.5;box(-20,-30,6,2);
+for(let i=0;i<5;i++){const r=B(new T.ConeGeometry(.25,2,5),M(0x4a2e18),-22.5+R()*.6,H(-20,-30)+.6,-30-1+i*.5);r.rotation.set(R(),0,1+R())}
+const keyM=B(new T.TorusGeometry(.18,.05,6,10),M(0x8a5a30,{metalness:.6}),-20,H(-20,-30)+.35,-28.5);
+// ruins
+const RC=[28,-42],stone=M(0x8a877c),ry=H(RC[0],RC[1]);
+B(new T.BoxGeometry(26,.4,26),stone,RC[0],ry,RC[1]).receiveShadow=true;
+wall(21.25,ry,-50,10.5,5,1.2,stone);wall(34.75,ry,-50,10.5,5,1.2,stone);wall(15.6,ry,-44,1,4,12,stone);wall(40.4,ry,-44,1,4,12,stone);
+wall(25,ry,-54,1,4,8,stone);wall(31,ry,-54,1,4,8,stone);wall(28,ry,-58,7,4,1,stone);B(new T.BoxGeometry(8,.8,10),stone,28,ry+4.4,-54);
+const rg=wall(28,ry,-50,3,5,1,M(0x5a5a52),false)[0],rgc=box(28,-50,3,1);rg.userData.y0=rg.position.y;
+const alt=B(new T.BoxGeometry(2,1,1.2),stone,28,ry+.5,-55);B(new T.OctahedronGeometry(.3),M(0xf2c14e,{emissive:0xaa7a10}),28,ry+1.4,-55);
+const nums=[9,7,4,2],hts=[3,5,2,4];
+nums.forEach((n,i)=>{const x=22+i*4,c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.fillStyle='#6b695f';g.fillRect(0,0,128,128);g.fillStyle='#e8d070';g.font='900 90px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(n,64,70);
+const h=hts[i];B(new T.BoxGeometry(1.3,h,1.3),stone,x,ry+h/2,-38);box(x,-38,1.3,1.3);const pl=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({map:new T.CanvasTexture(c)}));pl.position.set(x,ry+h*.6,-37.34);scene.add(pl)});
+for(const x of[17,39])for(const z of[-30,-24]){wall(x,ry,z,1.4,4+R()*2,1.4,stone)}
+// cave arch
+{const ay=H(45,-70);wall(43,ay,-70,1.6,4.5,1.6,M(0x6a675e));wall(47,ay,-70,1.6,4.5,1.6,M(0x6a675e));wall(45,ay+4.5,-70,5.6,1,1.6,M(0x6a675e),false);B(new T.BoxGeometry(2.4,3.6,.5),M(0x050505),45,ay+1.8,-70.2);box(45,-70.3,2.4,1)}
+// ---------- cave ----------
+const cave=new T.Group();cave.position.set(CX,CY,CZ);scene.add(cave);const rock=M(0x3a3a46,{side:T.BackSide});
+B(new T.BoxGeometry(20,7,75),rock,0,3.5,-32.5,cave);
+for(const s of[-1,1]){B(new T.BoxGeometry(7.5,7,1),M(0x3a3a46),s*5.75,3.5,-50,cave)}
+const cgate=B(new T.BoxGeometry(4,7,1),M(0x6a6a5a),0,3.5,-50,cave),cgc=box(CX,CZ-50,4,1);
+box(CX-5.75,CZ-50,7.5,1);box(CX+5.75,CZ-50,7.5,1);
+const cry=new T.InstancedMesh(new T.ConeGeometry(.3,1.4,5),M(0x55e0ff,{emissive:0x2299cc,emissiveIntensity:1.2}),70);
+for(let i=0;i<70;i++){const s=i%2?1:-1;dm.position.set(s*9.4,.5+R()*5,-R()*68);dm.rotation.set(R(),R()*6,s*(1.2+R()*.4));dm.scale.setScalar(.6+R());dm.updateMatrix();cry.setMatrixAt(i,dm.matrix)}cave.add(cry);
+const stal=new T.InstancedMesh(new T.ConeGeometry(.5,2.5,6),M(0x55555f),40);stal.castShadow=true;
+for(let i=0;i<40;i++){dm.position.set((R()-.5)*18,1.1,-R()*68-2);dm.rotation.set(0,0,0);dm.scale.setScalar(.5+R()*.8);dm.updateMatrix();stal.setMatrixAt(i,dm.matrix)}cave.add(stal);
+const ladder=new T.Group();B(new T.BoxGeometry(.1,5,.1),M(0x6a4a2a),-.4,2.5,0,ladder);B(new T.BoxGeometry(.1,5,.1),M(0x6a4a2a),.4,2.5,0,ladder);for(let i=0;i<8;i++)B(new T.BoxGeometry(.8,.08,.08),M(0x6a4a2a),0,.5+i*.6,0,ladder);ladder.position.set(0,0,3);cave.add(ladder);
+const tablet=B(new T.BoxGeometry(3,2,.3),stone,0,2,-12,cave);
+const LV=[['blue',0x3a7aff,-5],['red',0xff3a3a,0],['gold',0xf2c14e,5]].map(([id,c,x])=>{B(new T.CylinderGeometry(.4,.5,1,8),stone,x,.5,-44,cave);const p=new T.Group();p.position.set(x,1,-44);B(new T.CylinderGeometry(.05,.05,1.2,6),M(0x777777),0,.6,0,p);B(new T.SphereGeometry(.18,8,6),M(c,{emissive:c,emissiveIntensity:.5}),0,1.2,0,p);cave.add(p);box(CX+x,CZ-44,1,1);return{id,p}});
+const chest=new T.Group(),lid=new T.Group();B(new T.BoxGeometry(2.4,1.2,1.4),M(0x7a4a1a),0,.6,0,chest);const gm=M(0xf2c14e,{metalness:.8,roughness:.3,emissive:0x664400,emissiveIntensity:.5});B(new T.BoxGeometry(2.5,.2,1.5),gm,0,1.2,0,chest);for(const x of[-.9,.9])B(new T.BoxGeometry(.2,1.3,1.5),gm,x,.65,0,chest);
+lid.position.set(0,1.2,-.7);const lm=B(new T.CylinderGeometry(.7,.7,2.4,12,1,false,0,Math.PI),M(0x8a5a1a),0,0,.7,lid);lm.rotation.set(0,0,Math.PI/2);chest.add(lid);chest.position.set(0,0,-62);cave.add(chest);box(CX,CZ-62,2.6,1.6);
+const coins=new T.InstancedMesh(new T.CylinderGeometry(.18,.18,.04,10),gm,90);for(let i=0;i<90;i++){const a=R()*6.28,r=1.8+R()*2.8;dm.position.set(Math.cos(a)*r,.05+R()*.2,-62+Math.sin(a)*r*.8);dm.rotation.set(R()*2,R()*6,R()*2);dm.scale.setScalar(1);dm.updateMatrix();coins.setMatrixAt(i,dm.matrix)}cave.add(coins);
+const gems=new T.InstancedMesh(new T.OctahedronGeometry(.25),M(0xff55cc,{emissive:0xaa2288,emissiveIntensity:.8}),14);for(let i=0;i<14;i++){const a=R()*6.28,r=2+R()*2.5;dm.position.set(Math.cos(a)*r,.3,-62+Math.sin(a)*r*.8);dm.rotation.set(R(),R(),R());dm.updateMatrix();gems.setMatrixAt(i,dm.matrix)}cave.add(gems);
+const gold=new T.PointLight(0xffc040,0,16,1.5);gold.position.set(0,2.5,-60);cave.add(gold);
+cave.add(sk.clone().translateX(-3).translateZ(-6));
+// player torch
+const hand=torchM();hand.position.set(.35,-.35,-.6);hand.rotation.x=-.3;cam.add(hand);hand.visible=false;
+const tl=new T.PointLight(0xffa850,0,24,1.4);tl.position.set(.3,-.1,-.6);cam.add(tl);
+// fireflies / dust
+const PN=140,pg=new T.BufferGeometry(),pa2=new Float32Array(PN*3);for(let i=0;i<PN*3;i++)pa2[i]=(R()-.5)*50;pg.setAttribute('position',new T.BufferAttribute(pa2,3));
+const pts=new T.Points(pg,new T.PointsMaterial({color:0xfff2a0,size:.14,transparent:true,opacity:.8,depthWrite:false}));pts.frustumCulled=false;scene.add(pts);
+// ---------- audio ----------
+let AC,mg,nb,amb={},ev;
+function initAudio(){if(AC)return;try{AC=new(window.AudioContext||window.webkitAudioContext)();mg=AC.createGain();mg.gain.value=SET.vol;mg.connect(AC.destination);nb=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=R()*2-1;
+const mk=(f,t)=>{const s=AC.createBufferSource();s.buffer=nb;s.loop=true;const fl=AC.createBiquadFilter();fl.type=t;fl.frequency.value=f;const g=AC.createGain();g.gain.value=0;s.connect(fl).connect(g).connect(mg);s.start();return g};
+amb.wave=mk(700,'lowpass');amb.wind=mk(500,'bandpass');const dl=AC.createDelay();dl.delayTime.value=.3;const fb=AC.createGain();fb.gain.value=.5;dl.connect(fb);fb.connect(dl);ev=AC.createGain();ev.gain.value=0;mg.connect(dl);dl.connect(ev);ev.connect(AC.destination)}catch(e){console.warn('audio',e)}}
+function tone(f,d,t='sine',v=.2,f2){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.setValueAtTime(f,AC.currentTime);if(f2)o.frequency.exponentialRampToValueAtTime(f2,AC.currentTime+d);g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g).connect(mg);o.start();o.stop(AC.currentTime+d)}
+function step(){if(!AC)return;const s=AC.createBufferSource();s.buffer=nb;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=S.cave?500:300;const g=AC.createGain();g.gain.setValueAtTime(.25,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.09);s.connect(f).connect(g).connect(mg);s.start(0,R());s.stop(AC.currentTime+.1)}
+const sfx={get(){tone(660,.12,'triangle');setTimeout(()=>tone(990,.2,'triangle',.15),110)},ok(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.3,'triangle',.18),i*110))},bad(){tone(180,.35,'sawtooth',.15,90)},open(){tone(90,1.2,'sawtooth',.12,50);[880,1175,1568].forEach((f,i)=>setTimeout(()=>tone(f,.6,'sine',.12),400+i*150))},win(){[523,659,784,1047,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>tone(f,.5,'triangle',.18),i*260))}};
+// ---------- UI helpers ----------
+const toast=t=>{const d=document.createElement('div');d.textContent=t;$('ts').append(d);setTimeout(()=>d.remove(),3500)};
+let mode='title',cur=null,prev='title';
+function openUI(id){if(cur)$(cur).classList.remove('on');cur=id;mode='ui';if(document.pointerLockElement)document.exitPointerLock();$(id).classList.add('on')}
+function closeUI(){if(cur)$(cur).classList.remove('on');cur=null;mode='play';lock()}
+function lock(){try{const p=cvs.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function showModal(html,btns){$('mdc').innerHTML=html;const b=$('mdb');b.innerHTML='';btns.forEach(([t,f])=>{const x=document.createElement('button');x.textContent=t;x.onclick=f;b.append(x)});openUI('md')}
+const note=(t,body)=>showModal('<h2>'+t+'</h2><p>'+body+'</p>',[['닫기',closeUI]]);
+function fade(cb){const f=$('fade');f.style.opacity=1;setTimeout(()=>{cb();f.style.opacity=0},480)}
+const has=k=>S.inv.includes(k),take=k=>{S.inv=S.inv.filter(i=>i!==k)};
+function give(k){if(!has(k))S.inv.push(k);toast('획득: '+IT[k][1]+' '+IT[k][0]);sfx.get();save()}
+function save(){try{S.x=P.x;S.y=P.y;S.z=P.z;S.yaw=yaw;LS.setItem('ti_save',JSON.stringify(S))}catch(e){console.warn('save',e)}}
+const CHS=[['CHAPTER 1 · 표류','난파된 배 곁의 나무 상자를 조사하라'],['CHAPTER 2 · 정글 탐험','횃불·망치·식량을 챙기고 지도의 X 표시에서 열쇠를 찾아라'],['CHAPTER 3 · 고대 유적','유적 석문의 암호를 풀고 동굴 열쇠를 얻어라'],['CHAPTER 4 · 보물 동굴','횃불을 켜고 동굴의 레버를 올바른 순서로 당겨라'],['CHAPTER 5 · 보물 발견','보물상자를 열어 배 수리 부품을 얻어라'],['CHAPTER 6 · 탈출','해안의 배를 수리하라 (판자·망치·밧줄·부품)']];
+const chap=()=>{const f=S.f;return!f.crate?0:!f.key?1:!f.cavekey?2:!f.lv?3:!f.chest?4:5};
+function objPos(){const c=chap();return c==0?[-8,72]:c==1?[-20,-30]:c==2?[28,-50]:c==3||c==4?(S.cave?null:[45,-70]):[26,76]}
+// ---------- interactions ----------
+const I=(x,z,r,t,a)=>IA.push({x,z,r,t,a});
+I(-8,72,3.5,()=>!S.f.crate&&'나무 상자 열기',()=>{S.f.crate=1;['map','compass','rope'].forEach(give);note('나무 상자','젖은 상자 안에서 낡은 보물지도, 나침반, 밧줄을 찾았다. 지도에는 X 표시가 있다. (M 키로 지도 열기)')});
+I(-8,48,2.5,()=>!S.f.food&&'코코넛 줍기',()=>{S.f.food=1;give('food')});PK.push([cc,'food']);
+I(-42,10,2.5,()=>!S.f.hammer&&'망치 줍기',()=>{S.f.hammer=1;give('hammer')});PK.push([hamM,'hammer']);
+I(-35,15,2.5,()=>!S.f.torchp&&'횃불 줍기',()=>{S.f.torchp=1;give('torch')});PK.push([torchP,'torchp']);
+I(-38,16,3,()=>'해적의 기록 읽기',()=>{S.f.journal=1;note('해적 선장의 기록','폭풍 속에서 보물을 동굴에 숨겼다. 동굴로 가는 열쇠는 고대 유적의 문 뒤에 있다. 문은 녹슨 열쇠와 네 자리 암호로 잠겨 있다. 암호는 기둥에 새겨진 숫자를, 가장 높은 기둥부터 낮은 순서대로 읽으면 된다. 녹슨 열쇠는 쓰러진 거목 아래, 지도에 X로 표시해 두었다.')});
+I(-20,-29,3.5,()=>!S.f.key&&'쓰러진 나무 아래 살펴보기',()=>{S.f.key=1;give('key')});PK.push([keyM,'key']);
+I(28,-48.5,4,()=>!S.f.gate&&'잠긴 석문 조사',()=>{if(!has('key'))return note('잠긴 석문','녹슨 자물쇠가 걸려 있다. 맞는 열쇠가 필요하다.');keypad()});
+I(28,-54,3,()=>S.f.gate&&!S.f.altar&&'제단 조사',()=>{S.f.altar=1;S.f.cavekey=1;['glyph','ckey','plank'].forEach(give);note('제단','제단 위에서 고대 문양 조각, 동굴 열쇠, 단단한 나무판자를 찾았다. 동굴 입구는 지도에 표시된 해안 절벽 쪽에 있다.')});
+I(45,-68,4,()=>!S.cave&&'동굴 입구',()=>{if(!has('ckey'))return note('동굴 입구','굳게 잠긴 문이다. 열쇠가 필요하다.');enter()});
+I(CX,CZ+2,3,()=>S.cave&&'동굴 밖으로 나가기',()=>fade(()=>{S.cave=0;P.x=45;P.z=-64;yaw=Math.PI;P.y=H(45,-64)+3}));
+I(CX,CZ-12,4,()=>S.cave&&'벽의 고대 문자 읽기',()=>note('벽의 고대 문자','"황금 태양이 먼저 떠오르고, 푸른 달이 뒤를 따르며, 붉은 별이 마지막으로 진다."'));
+let seq=[];LV.forEach((l,i)=>I(CX+[-5,0,5][i],CZ-44,2.2,()=>S.cave&&!S.f.lv&&'레버 당기기',()=>{seq.push(l.id);l.p.rotation.x=.9;tone(200,.15,'square',.1);const ord=['gold','blue','red'];
+if(seq.some((s,k)=>s!==ord[k])){seq=[];setTimeout(()=>{sfx.bad();toast('레버가 덜컹거리며 원래대로 돌아갔다.');LV.forEach(x=>x.p.rotation.x=0)},400)}else if(seq.length==3){S.f.lv=1;sfx.open();toast('육중한 돌문이 열린다!');save()}}));
+I(CX,CZ-61,3.5,()=>S.cave&&S.f.lv&&!S.f.chest&&'보물상자 열기',()=>{S.f.chest=1;sfx.open();setTimeout(()=>give('part'),900);note('보물상자','황금빛이 쏟아진다! 금화와 보석 사이에서 배를 고칠 수 있는 항해 부품을 찾았다.')});
+I(26,76,6,()=>S.f.crate&&!S.f.end&&'배 수리하기',()=>{const ks=['plank','hammer','rope','part'],nm={plank:'나무판자',hammer:'망치',rope:'밧줄',part:'수리 부품'};let n=0;ks.forEach(k=>{if(has(k)&&!S.f['s_'+k]){take(k);S.f['s_'+k]=1;n++;sfx.get()}});
+const miss=ks.filter(k=>!S.f['s_'+k]);if(!miss.length)return finish();toast(n?'수리 진행! 남은 것: '+miss.map(k=>nm[k]).join(', '):'필요한 것: '+miss.map(k=>nm[k]).join(', '));save()});
+function keypad(){showModal('<h2>석문의 암호</h2><p>네 자리 숫자를 입력하라.</p><input id="kp" maxlength="4" inputmode="numeric" autocomplete="off">',[['확인',()=>{const v=$('kp').value;if(v==='7294'){take('key');S.f.gate=1;sfx.ok();setTimeout(sfx.open,500);closeUI();toast('석문이 굉음과 함께 내려간다!');save()}else{sfx.bad();const k=$('kp');k.classList.remove('shake');void k.offsetWidth;k.classList.add('shake');k.value=''}}],['취소',closeUI]]);setTimeout(()=>$('kp').focus(),50)}
+function enter(){fade(()=>{S.cave=1;P.x=CX;P.z=CZ-1;P.y=CY+3;yaw=0;S.f.cave=1;save()});toast('어둡다… 인벤토리에서 횃불을 켜자 (F)')}
+function finish(){S.f.end=1;save();sfx.win();bp.plank.visible=true;boat.traverse(o=>{if(o.userData.sail)o.visible=true});anim.push(dt=>{boat.position.x+=dt*3;boat.position.z+=dt*6;boat.position.y=-.2+Math.sin(performance.now()/300)*.15});setTimeout(()=>{fade(()=>openUI('end'))},4000);document.exitPointerLock&&document.exitPointerLock();mode='ui'}
+// ---------- inventory / map ----------
+let sel=null;
+function drawInv(){const g=$('grid');g.innerHTML='';Object.keys(IT).forEach(k=>{if(!has(k))return;const b=document.createElement('button');b.className='sl'+(sel==k?' s':'');b.textContent=IT[k][1];b.title=IT[k][0];b.onclick=()=>{sel=k;drawInv()};g.append(b)});
+$('idesc').innerHTML=sel&&has(sel)?'<b>'+IT[sel][0]+'</b><br>'+IT[sel][2]+(sel=='torch'&&S.torch?'<br>(켜짐)':''):(S.inv.length?'아이템을 선택하세요.':'가진 것이 없다.')}
+function useItem(){if(!sel||!has(sel))return;if(sel=='torch')toggleTorch();else if(sel=='map')openMap();else if(sel=='food'){toast('식량을 먹었다. 기운이 난다.')}else toast('필요한 장소에서 E 키로 자동 사용됩니다.')}
+function toggleTorch(){if(!has('torch'))return;S.torch=S.torch?0:1;toast(S.torch?'횃불을 켰다':'횃불을 껐다');if(cur=='inv')drawInv()}
+const mbg=document.createElement('canvas');mbg.width=mbg.height=170;{const g=mbg.getContext('2d');for(let i=0;i<170;i++)for(let j=0;j<170;j++){const h=H((i/170-.5)*260,(j/170-.5)*260);g.fillStyle=h<-.5?'#2a6a78':h<3.3?'#e6cf98':h<9?'#5a9a4a':h<14?'#3c7a3c':'#8a8478';g.fillRect(i,j,1,1)}}
+function openMap(){if(!has('map'))return toast('지도가 없다.');openUI('map');const c=$('mc'),g=c.getContext('2d'),w=c.width,m=(x,z)=>[(x/260+.5)*w,(z/260+.5)*w];g.imageSmoothingEnabled=false;g.drawImage(mbg,0,0,w,w);g.font='700 13px "Gowun Batang"';g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;
+const lab=(t,x,z)=>{const[a,b]=m(x,z);g.strokeText(t,a-14,b);g.fillText(t,a-14,b)};lab('해변',0,88);lab('캠프',-38,12);lab('유적',28,-42);lab('동굴',45,-70);lab('배',26,76);
+const o=objPos();if(o){const[a,b]=m(...o);g.fillStyle='#e22';g.font='900 30px sans-serif';g.fillText('✕',a-10,b+10)}
+if(S.cave){g.fillStyle='#fff';g.fillText('동굴 안',10,20)}else{const[a,b]=m(P.x,P.z);g.save();g.translate(a,b);g.rotate(-yaw);g.fillStyle='#ff0';g.beginPath();g.moveTo(0,-9);g.lineTo(6,7);g.lineTo(-6,7);g.fill();g.restore()}}
+// ---------- input / state ----------
+const P={x:4,y:0,z:70},k={};let yaw=0,pitch=0,vy=0,onG=true,bobT=0,prevS=0;
+document.addEventListener('mousemove',e=>{if(document.pointerLockElement===cvs){yaw-=e.movementX*SET.sens*.001;pitch=cl(pitch-e.movementY*SET.sens*.001,-1.5,1.5)}});
+document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&mode==='play'){openUI('pause')}});
+cvs.addEventListener('click',()=>{if(mode==='play'&&!document.pointerLockElement)lock()});
+document.addEventListener('keydown',e=>{if(e.code=='Tab'){e.preventDefault();if(mode==='play'){sel=null;drawInv();openUI('inv')}else if(cur=='inv')closeUI();return}
+if(e.code=='Escape'&&mode==='ui'&&cur&&cur!='title'&&cur!='end'){if(cur=='pause'||cur=='set')return;closeUI();return}
+if(mode==='ui'&&cur=='map'&&e.code=='KeyM'){closeUI();return}
+if(mode==='ui'&&cur=='md'&&e.code=='Enter'){const b=$('mdb').firstChild;b&&b.click();return}
+if(mode!=='play')return;k[e.code]=1;if(e.code=='Space')e.preventDefault();
+if(e.code=='KeyE'&&best)best.a();if(e.code=='KeyM')openMap();if(e.code=='KeyF')toggleTorch()});
+document.addEventListener('keyup',e=>k[e.code]=0);
+function applySet(){$('sv').value=SET.vol;$('ss').value=SET.sens;if(mg)mg.gain.value=SET.vol}
+$('sv').oninput=e=>{SET.vol=+e.target.value;if(mg)mg.gain.value=SET.vol;LS.setItem('ti_set',JSON.stringify(SET))};$('ss').oninput=e=>{SET.sens=+e.target.value;LS.setItem('ti_set',JSON.stringify(SET))};
+function begin(isNew){initAudio();if(isNew)S=fresh();else{try{S=Object.assign(fresh(),JSON.parse(LS.getItem('ti_save')))}catch(e){S=fresh()}}
+P.x=S.x;P.z=S.z;yaw=S.yaw;pitch=0;P.y=(S.cave?CY:H(S.x,S.z))+1.7;vy=0;seq=[];if(!S.cave&&!isNew&&S.y>P.y)P.y=S.y;
+$('title').classList.remove('on');if(cur)$(cur).classList.remove('on');cur=null;$('hud').style.display='block';mode='play';lock();save();if(isNew)toast('바닷물에 젖은 몸을 일으킨다… 난파된 배 쪽을 살펴보자.')}
+$('bNew').onclick=()=>begin(true);$('bCont').onclick=()=>begin(false);$('bCont').disabled=!LS.getItem('ti_save');
+$('bSet').onclick=()=>{prev='title';openUI('set')};$('pS').onclick=()=>{prev='pause';openUI('set')};$('sB').onclick=()=>{openUI(prev);if(prev=='title')mode='title'};
+$('pR').onclick=closeUI;$('pN').onclick=()=>begin(true);$('eN').onclick=()=>begin(true);$('iU').onclick=useItem;$('iC').onclick=closeUI;$('mX').onclick=closeUI;
+applySet();setInterval(()=>{if(mode==='play')save()},10000);
+// ---------- movement ----------
+const gnd=(x,z)=>S.cave?CY:H(x,z);
+function ok(x,z){if(S.cave){if(Math.abs(x-CX)>9.4||z>CZ+4.4||z<CZ-69.4)return false}else if(H(x,z)<-.8)return false;
+if(gnd(x,z)-(P.y-1.7)>1.1&&onG)return false;for(const c of COL){if(c===rgc&&S.f.gate||c===cgc&&S.f.lv)continue;if(x>c.x1-.35&&x<c.x2+.35&&z>c.z1-.35&&z<c.z2+.35)return false}return true}
+let best=null;const v3=new T.Vector3(),tC=new T.Color(),cFog=new T.Color(),cA=new T.Color(0x9fd8d6),cB=new T.Color(0x2e5a4a);
+const clock=new T.Clock();
+function resize(){ren.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+function tick(){requestAnimationFrame(tick);const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;U.time.value=t;
+// water
+for(let i=0;i<wp.count;i++){const x=wp.getX(i),z=wp.getZ(i);wp.setY(i,Math.sin(x*.15+t*1.2)*.12+Math.cos(z*.12+t*1.5)*.1+Math.sin((x+z)*.3+t*2)*.04)}wp.needsUpdate=true;
+if(mode==='title'){const a=t*.06;cam.position.set(Math.sin(a)*25-5,10,108);cam.lookAt(0,4,40);cam.rotation.z=0;sun.position.set(30,60,60);sun.target.position.set(0,0,60);P.x=0;P.z=70;mood(dt,t);ren.render(scene,cam);return}
+if(mode==='play'){const f=(k.KeyW?1:0)-(k.KeyS?1:0),s=(k.KeyD?1:0)-(k.KeyA?1:0),run=k.ShiftLeft||k.ShiftRight;let dx=-Math.sin(yaw)*f+Math.cos(yaw)*s,dz=-Math.cos(yaw)*f-Math.sin(yaw)*s;const l=Math.hypot(dx,dz);
+if(l>0){const sp=(run?7.5:4.2)*dt/l;const nx=P.x+dx*sp,nz=P.z+dz*sp;if(ok(nx,P.z))P.x=nx;if(ok(P.x,nz))P.z=nz;bobT+=dt*(run?11:8);const sn=Math.sin(bobT)>0?1:0;if(sn!==prevS&&onG){prevS=sn;step()}}
+if(k.Space&&onG){vy=6.2;onG=false}vy-=18*dt;P.y+=vy*dt;const gy=gnd(P.x,P.z)+1.7;if(P.y<=gy){P.y=gy;vy=0;onG=true}else if(P.y>gy+.05)onG=false}
+const bob=mode==='play'&&onG?Math.sin(bobT)*.045:0;cam.position.set(P.x,P.y+bob,P.z);cam.rotation.set(pitch,yaw,0);sky.position.copy(cam.position);sky.visible=!S.cave;
+sun.position.set(P.x+35,P.y+60,P.z+25);sun.target.position.set(P.x,P.y,P.z);
+mood(dt,t);
+// props
+PK.forEach(([m,f])=>m.visible=!S.f[f]);
+rg.position.y+=((S.f.gate?rg.userData.y0-5.2:rg.userData.y0)-rg.position.y)*Math.min(1,dt*1.5);cgate.position.y+=((S.f.lv?9:3.5)-cgate.position.y)*Math.min(1,dt*1.5);
+lid.rotation.x+=((S.f.chest?-1.9:0)-lid.rotation.x)*Math.min(1,dt*3);gold.intensity=S.cave&&S.f.chest?3+Math.sin(t*5):S.cave?.6:0;
+for(const x of['plank','rope','part'])bp[x].visible=!!S.f['s_'+x];if(S.f.s_hammer)boat.traverse(o=>{if(o.userData.sail)o.visible=true});
+const fk=1+Math.sin(t*20)*.2+Math.sin(t*13)*.15;flame.scale.set(fk,fk*1.2,fk);fl2.scale.set(1/fk,fk,1/fk);fire.intensity=2*fk;FL.forEach((m,i)=>m.scale.setScalar(.9+Math.sin(t*18+i)*.2));
+hand.visible=!!S.torch&&has('torch');tl.intensity=hand.visible?1.8*(.9+Math.sin(t*17)*.1+Math.sin(t*9)*.08):0;
+anim.forEach(a=>a(dt));
+for(let i=0;i<PN;i++){const j=i*3;pa2[j]+=Math.sin(t+i)*dt*.3;pa2[j+1]+=Math.cos(t*.7+i*2)*dt*.2;pa2[j+2]+=Math.cos(t*.5+i)*dt*.3;for(let a=0;a<3;a+=2){const c=a?P.z:P.x;if(pa2[j+a]-c>25)pa2[j+a]-=50;if(pa2[j+a]-c<-25)pa2[j+a]+=50}const gyy=gnd(pa2[j],pa2[j+2]);if(pa2[j+1]<gyy+.3||pa2[j+1]>gyy+6)pa2[j+1]=gyy+.5+R()*4}
+pg.attributes.position.needsUpdate=true;
+// interaction
+best=null;if(mode==='play'){let bs=1e9;const fx=-Math.sin(yaw),fz=-Math.cos(yaw);for(const it of IA){const lb=it.t();if(!lb)continue;const ex=it.x-P.x,ez=it.z-P.z,d=Math.hypot(ex,ez);if(d>it.r)continue;if(d>1.2&&(ex*fx+ez*fz)/d<.35)continue;if(d<bs){bs=d;best=it;best.lb=lb}}}
+const pr=$('pr');if(best){pr.style.display='block';pr.textContent='[E] '+best.lb}else pr.style.display='none';
+if(mode==='play'){const c=chap();$('cht').textContent=CHS[c][0];$('goal').textContent=(c==2&&S.f.altar||c==3&&!S.cave&&false)?'':(c==3&&!S.cave?'동굴 입구(지도의 ✕)로 가서 동굴로 들어가라':CHS[c][1]);$('cmp').style.display=has('compass')?'block':'none';$('ring').style.transform='rotate('+(yaw*57.3)+'deg)';$('deg').textContent=['북','북서','서','남서','남','남동','동','북동'][Math.round(((yaw%6.283)+6.283)%6.283/.7854)%8]}
+if(AC){const cv=S.cave,sh=cv?0:cl((P.z-30)/50,0,1);amb.wave.gain.value+=((sh*.16*(.6+.4*Math.sin(t*.7)))-amb.wave.gain.value)*.1;amb.wind.gain.value+=(((cv?.02:.05)*(1+Math.sin(t*.3)))-amb.wind.gain.value)*.1;ev.gain.value=cv?.45:0;
+if(!cv&&R()<dt*.5&&P.z<50){const f=2200+R()*1500;tone(f,.12,'sine',.05,f*1.4);setTimeout(()=>tone(f*1.1,.1,'sine',.04,f*1.5),140)}}
+ren.render(scene,cam)}
+function mood(dt,t,lvl){const cv=S.cave&&mode!=='title',jf=mode==='title'?0:cl((70-P.z)/110,0,1),ds=.5+.5*Math.sin(t*.03),a=Math.min(1,dt*2);
+if(cv){cFog.set(0x020205);scene.fog.density+=(.075-scene.fog.density)*a;hemi.intensity+=(.14-hemi.intensity)*a;sun.intensity=0}
+else{cFog.copy(cA).lerp(cB,jf);scene.fog.density+=((.005+jf*.011)-scene.fog.density)*a;hemi.intensity+=((.95-jf*.4)-hemi.intensity)*a;sun.intensity+=((2.2-jf*.8)-sun.intensity)*a;sun.color.set(0xfff4dc).lerp(tC.set(0xffb070),ds*.45);skyU.t.value.set(0x2f86c9).lerp(tC.set(0x1c4a6a),jf);skyU.b.value.set(0xbfe9e6).lerp(tC.set(0x6a9a8a),jf)}
+scene.fog.color.lerp(cFog,a);scene.background=scene.fog.color}
+tick();
+window.addEventListener('error',e=>console.error('[TreasureIsland]',e.message,e.filename,e.lineno));
+</script></body></html>
